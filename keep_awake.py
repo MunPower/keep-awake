@@ -40,11 +40,27 @@ def app_is_ready(page):
     return False
 
 
+NOT_FOUND = re.compile(r"does not exist|do not have access|app not found", re.I)
+
+
+def page_says_not_found(page):
+    """주소가 틀려서 '앱이 없음' 화면이 뜬 경우 (예전에는 이것도 '정상'으로 넘어갔음)"""
+    for frame in page.frames:
+        try:
+            if frame.get_by_text(NOT_FOUND).count() > 0:
+                return True
+        except Exception:
+            pass
+    return False
+
+
 def visit(page, url):
     page.goto(url, wait_until="domcontentloaded", timeout=90_000)
     woke = False
     for _ in range(MAX_CHECKS):
         page.wait_for_timeout(CHECK_EVERY_MS)
+        if page_says_not_found(page):
+            raise RuntimeError("이 주소에는 앱이 없어요. urls.txt 주소를 index.html의 iframe 주소와 맞춰 주세요")
         if not woke:
             btn = find_wake_button(page)
             if btn is not None:
